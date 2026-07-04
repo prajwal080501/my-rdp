@@ -1,33 +1,56 @@
 // Thin wrapper around the signaling server's WebSocket protocol. Only relays
 // registration, connect-request/accept/reject, and SDP/ICE — never media or passwords.
 (function () {
+  const MAX_CONNECT_RETRIES = 3
+
   class SignalingClient extends EventTarget {
     constructor(url) {
       super()
       this.url = url
       this.ws = null
       this.deviceId = null
+      this._registered = false
+      this._retriesLeft = MAX_CONNECT_RETRIES
     }
 
     connect(deviceId) {
       this.deviceId = deviceId
-      this.ws = new WebSocket(this.url)
+      this._registered = false
+      this._retriesLeft = MAX_CONNECT_RETRIES
+      this._open()
+    }
 
-      this.ws.addEventListener('open', () => {
-        this._send({ type: 'register', id: deviceId })
+    _open() {
+      const ws = new WebSocket(this.url)
+      this.ws = ws
+
+      ws.addEventListener('open', () => {
+        this._send({ type: 'register', id: this.deviceId })
       })
 
-      this.ws.addEventListener('message', (event) => {
+      ws.addEventListener('message', (event) => {
         const msg = JSON.parse(event.data)
+        if (msg.type === 'registered') this._registered = true
         this.dispatchEvent(new CustomEvent('message', { detail: msg }))
       })
 
-      this.ws.addEventListener('close', () => {
+      // A brand-new connection can occasionally be dropped by the hosting
+      // platform's proxy right at handshake time (observed on Render's free
+      // tier when two clients connect within the same instant). Retry a few
+      // times before surfacing a real disconnect to the app.
+      ws.addEventListener('close', () => {
+        if (!this._registered && this._retriesLeft > 0) {
+          this._retriesLeft--
+          setTimeout(() => this._open(), 500)
+          return
+        }
         this.dispatchEvent(new Event('close'))
       })
 
-      this.ws.addEventListener('error', () => {
-        this.dispatchEvent(new CustomEvent('error'))
+      // The 'close' handler above decides whether this is worth surfacing —
+      // a transient error during a silent retry shouldn't reach the app.
+      ws.addEventListener('error', () => {
+        if (this._registered || this._retriesLeft <= 0) this.dispatchEvent(new CustomEvent('error'))
       })
     }
 

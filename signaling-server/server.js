@@ -16,6 +16,10 @@ function send(ws, msg) {
 
 wss.on('connection', (ws) => {
   ws.deviceId = null
+  ws.isAlive = true
+  ws.on('pong', () => {
+    ws.isAlive = true
+  })
 
   ws.on('message', (raw) => {
     let msg
@@ -78,5 +82,24 @@ wss.on('connection', (ws) => {
     if (ws.partnerId) send(peers.get(ws.partnerId), { type: 'peer-disconnected' })
   })
 })
+
+// Connections can die without a clean TCP close (common behind proxies like
+// Render/Cloudflare), which would otherwise leave a registered ID stuck
+// forever. Ping periodically and drop anything that doesn't answer.
+const HEARTBEAT_INTERVAL_MS = 30000
+
+const heartbeat = setInterval(() => {
+  for (const ws of wss.clients) {
+    if (ws.isAlive === false) {
+      if (ws.deviceId) peers.delete(ws.deviceId)
+      ws.terminate()
+      continue
+    }
+    ws.isAlive = false
+    ws.ping()
+  }
+}, HEARTBEAT_INTERVAL_MS)
+
+wss.on('close', () => clearInterval(heartbeat))
 
 console.log(`Signaling server listening on port ${PORT}`)
