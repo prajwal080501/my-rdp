@@ -4,70 +4,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RDP</title>
+    <title>Beam</title>
+    <link rel="stylesheet" href="styles.css">
     <style>
-        body {
-            font-family: sans-serif;
-            background: #1e1e1e;
-            color: #eee;
-            padding: 16px;
+        section:nth-of-type(2) {
+            animation-delay: 0.06s;
         }
 
-        section {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 4px;
-            color: #9cdcfe;
-        }
-
-        input {
-            padding: 6px;
-            width: 260px;
-            background: #2d2d2d;
-            border: 1px solid #555;
-            color: #eee;
-        }
-
-        button {
-            padding: 6px 14px;
-            margin-left: 6px;
-            cursor: pointer;
-        }
-
-        #your-id {
-            font-size: 1.6em;
-            letter-spacing: 2px;
-            font-weight: bold;
-        }
-
-        #remote-view.hidden,
-        #home-view.hidden {
-            display: none;
-        }
-
-        video {
-            width: 100%;
-            max-width: 900px;
-            background: #000;
-            border: 1px solid #444;
-        }
-
-        #status {
-            color: #9cdcfe;
-            white-space: pre-wrap;
+        .field-group {
+            margin-top: 16px;
         }
     </style>
 </head>
 
 <body>
-    <h2>RDP</h2>
+    <h2>Beam</h2>
 
     <section id="signaling-section">
         <label for="signaling-url">Signaling server URL</label>
-        <input id="signaling-url" value="ws://localhost:8080" />
+        <input id="signaling-url" />
         <button id="signaling-connect-btn">Connect</button>
     </section>
 
@@ -75,17 +30,10 @@
         <label>Your ID</label>
         <div id="your-id">...</div>
 
-        <div style="margin-top: 16px">
+        <div class="field-group">
             <label for="remote-id-input">Connect to remote ID</label>
             <input id="remote-id-input" placeholder="e.g. 123456789" />
             <button id="connect-btn">Connect</button>
-        </div>
-    </section>
-
-    <section id="remote-view" class="hidden">
-        <video id="remote-screen-video" autoplay></video>
-        <div>
-            <button id="disconnect-btn">Disconnect</button>
         </div>
     </section>
 
@@ -94,7 +42,6 @@
     <script src="webrtc/signaling-client.js"></script>
     <script src="webrtc/peer-connection.js"></script>
     <script src="views/home.js"></script>
-    <script src="views/remote-screen.js"></script>
     <script src="renderer.js"></script>
 </body>
 

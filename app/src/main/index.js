@@ -1,27 +1,14 @@
 const { app, BrowserWindow } = require('electron')
-const path = require('path')
 const { registerIpcHandlers } = require('./ipc-handlers')
-
-const createWindow = () => {
-  const win = new BrowserWindow({
-    width: 1100,
-    height: 750,
-    webPreferences: {
-      preload: path.join(__dirname, '..', 'preload', 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false
-    }
-  })
-
-  win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'))
-}
+const { createHomeWindow, registerWindowIpcHandlers } = require('./windows')
 
 app.whenReady().then(() => {
   registerIpcHandlers()
-  createWindow()
+  registerWindowIpcHandlers()
+  createHomeWindow()
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) createHomeWindow()
   })
 })
 

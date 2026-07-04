@@ -13,6 +13,10 @@
       this.iceServers = DEFAULT_ICE_SERVERS
       this.remoteId = null
       this.role = null
+      // True once an outgoing call has been handed off to the viewer window,
+      // which owns the actual RTCPeerConnection from that point on — this
+      // instance just relays the remaining signaling messages for it.
+      this._delegated = false
 
       this.signaling.addEventListener('message', (event) => {
         this._onSignalingMessage(event.detail).catch((err) => this._status(`Signaling handling error: ${err.message}`))
@@ -31,6 +35,26 @@
       this._status(`Requesting connection to ${remoteId}...`)
     }
 
+    // True if there's already a live (possibly hidden) viewer session for this ID.
+    isDelegatedTo(remoteId) {
+      return this._delegated && this.remoteId === remoteId
+    }
+
+    // Called once the viewer window reports the call has really ended.
+    resetDelegation() {
+      this._delegated = false
+      this.remoteId = null
+    }
+
+    // Used by the viewer window's own PeerSession, once the home window has
+    // handed off an already-accepted outgoing call to it.
+    beginOutgoingCall(remoteId, iceServers) {
+      this.remoteId = remoteId
+      this.role = 'caller'
+      this.setIceServers(iceServers)
+      return this._createOfferAsCaller()
+    }
+
     // Callee side: answer an incoming-request notification.
     respondToIncoming(accept) {
       this.signaling.respondToRequest(this.remoteId, accept)
@@ -42,6 +66,18 @@
     }
 
     async _onSignalingMessage(msg) {
+      // Once delegated, these three message types belong to the call now
+      // running in the viewer window — relay them there instead of handling
+      // locally (this.pc doesn't exist here for a delegated call).
+      if (this._delegated && (msg.type === 'sdp-answer' || msg.type === 'ice-candidate' || msg.type === 'peer-disconnected')) {
+        this.dispatchEvent(new CustomEvent('delegate-message', { detail: msg }))
+        if (msg.type === 'peer-disconnected') {
+          this._delegated = false
+          this.remoteId = null
+        }
+        return
+      }
+
       switch (msg.type) {
         case 'registered':
           this.setIceServers(msg.iceServers)
@@ -53,10 +89,13 @@
           this.dispatchEvent(new CustomEvent('incoming-request', { detail: { fromId: msg.fromId } }))
           break
 
-        case 'accepted':
-          this._status('Accepted, negotiating connection...')
-          await this._createOfferAsCaller()
+        case 'accepted': {
+          this._status('Accepted — opening viewer window...')
+          this._delegated = true
+          const { remoteId, iceServers } = this
+          this.dispatchEvent(new CustomEvent('call-accepted', { detail: { remoteId, iceServers } }))
           break
+        }
 
         case 'rejected':
           this._status('Connection rejected by remote peer.')
@@ -152,6 +191,7 @@
       }
       this.remoteId = null
       this.role = null
+      this._delegated = false
     }
   }
 

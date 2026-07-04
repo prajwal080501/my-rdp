@@ -10,12 +10,6 @@
       const targetId = remoteIdInput.value.trim()
       if (targetId) onConnect(targetId)
     })
-
-    return {
-      setVisible(visible) {
-        document.getElementById('home-view').classList.toggle('hidden', !visible)
-      }
-    }
   }
 
   window.RDP = window.RDP || {}
