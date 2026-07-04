@@ -41,18 +41,14 @@ function toPublicUser(user) {
   }
 }
 
-// Only works once: the first signup on a fresh deployment bootstraps the org
-// and its owner. Every user after that is created via POST /auth/users by an
-// existing owner/admin — there's no self-serve signup and no SMTP dependency.
+// TEMPORARY: open self-serve signup, no bootstrap-only restriction — every
+// call creates a brand-new org and its owner. Fine for testing; re-add a
+// gate (invite-only, or an admin-configured allowlist) before real users
+// depend on org boundaries being meaningful.
 router.post('/signup', async (req, res) => {
   const { email, password, orgName } = req.body
   if (!email || !password || !orgName) {
     return res.status(400).json({ error: 'email, password, and orgName are required' })
-  }
-
-  const existingOrgCount = await Org.countDocuments()
-  if (existingOrgCount > 0) {
-    return res.status(403).json({ error: 'Signup is disabled. Ask your org owner to create your account.' })
   }
 
   const org = await Org.create({ name: orgName })
