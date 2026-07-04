@@ -1,0 +1,14 @@
+{
+  "name": "rdp-signaling-server",
+  "version": "1.0.0",
+  "description": "Relays WebRTC pairing/SDP/ICE messages between rdp-app instances. Never touches media or passwords.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "ws": "^8.18.0"
+  }
+}
