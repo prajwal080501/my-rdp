@@ -7,7 +7,7 @@
   "scripts": {
     "start": "electron .",
     "dist:win": "electron-builder --win",
-    "dist:mac": "electron-builder --mac",
+    "dist:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
