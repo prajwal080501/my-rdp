@@ -159,3 +159,14 @@ button.danger:active {
   white-space: pre-wrap;
   transition: color 0.2s ease;
 }
+
+.hidden {
+  display: none !important;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 0.85em;
+  min-height: 1.2em;
+  margin-top: 8px;
+}

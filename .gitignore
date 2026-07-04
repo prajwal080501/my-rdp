@@ -4,3 +4,5 @@ dist/
 out/
 *.log
 .claude/
+.DS_Store
+.vercel

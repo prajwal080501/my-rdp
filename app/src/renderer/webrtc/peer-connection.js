@@ -105,7 +105,11 @@
           this._status('Accepted — opening viewer window...')
           this._delegated = true
           const { remoteId, iceServers } = this
-          this.dispatchEvent(new CustomEvent('call-accepted', { detail: { remoteId, iceServers } }))
+          // Generated once here (caller side) and threaded through to the
+          // viewer window via session-init — the single id both the session
+          // and recording records key off of.
+          const sessionId = crypto.randomUUID()
+          this.dispatchEvent(new CustomEvent('call-accepted', { detail: { remoteId, iceServers, sessionId } }))
           break
         }
 
@@ -135,6 +139,9 @@
 
         case 'peer-disconnected':
           this._status('Remote peer disconnected.')
+          // Fired before close() so listeners (session/recording bookkeeping)
+          // can tell this apart from the local user clicking Disconnect.
+          this.dispatchEvent(new CustomEvent('call-ended', { detail: { reason: 'peer_disconnected' } }))
           this.close()
           break
 

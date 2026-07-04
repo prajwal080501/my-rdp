@@ -1,6 +1,7 @@
 const { ipcMain, app, Notification } = require('electron')
 const fs = require('fs')
 const path = require('path')
+const audit = require('./audit')
 
 // id -> { stream, filePath, name, sender }
 const activeTransfers = new Map()
@@ -47,6 +48,9 @@ function registerFileTransferHandlers() {
     if (!transfer) return
     activeTransfers.delete(id)
     transfer.stream.end(() => {
+      const { size } = fs.statSync(transfer.filePath)
+      audit.reportEvent('file_transfer.received', { name: transfer.name, sizeBytes: size })
+
       if (Notification.isSupported()) {
         new Notification({ title: 'Beam', body: `Received "${transfer.name}"` }).show()
       }

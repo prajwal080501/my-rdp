@@ -73,6 +73,7 @@
 
     channel.send(JSON.stringify({ t: 'file-end', id }))
     onProgress({ type: 'done', id, name: file.name, size: file.size })
+    window.rdp.send('report-audit-event', { type: 'file_transfer.sent', payload: { name: file.name, sizeBytes: file.size } })
   }
 
   window.RDP = window.RDP || {}

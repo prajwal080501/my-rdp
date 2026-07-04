@@ -12,7 +12,13 @@ const OUTGOING_CHANNELS = [
   'inject-input',
   'file-transfer-start',
   'file-transfer-chunk',
-  'file-transfer-end'
+  'file-transfer-end',
+  'report-audit-event',
+  'session-report-start',
+  'session-report-end',
+  'recording-start',
+  'recording-chunk',
+  'recording-stop'
 ]
 const INCOMING_CHANNELS = [
   'session-init',
@@ -25,6 +31,11 @@ const INCOMING_CHANNELS = [
 contextBridge.exposeInMainWorld('rdp', {
   getScreenSources: () => ipcRenderer.invoke('get-screen-sources'),
   getDeviceId: () => ipcRenderer.invoke('get-device-id'),
+
+  getSession: () => ipcRenderer.invoke('auth-get-session'),
+  login: (payload) => ipcRenderer.invoke('auth-login', payload),
+  logout: () => ipcRenderer.invoke('auth-logout'),
+  getDeviceToken: () => ipcRenderer.invoke('auth-get-device-token'),
 
   send: (channel, payload) => {
     if (!OUTGOING_CHANNELS.includes(channel)) throw new Error(`Blocked outgoing IPC channel: ${channel}`)

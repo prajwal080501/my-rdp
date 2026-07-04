@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Beam Admin</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; background: #f5f5f7; color: #1d1d1f; }
+  header { display: flex; justify-content: space-between; align-items: center; padding: 12px 24px; background: #1d1d1f; color: #fff; }
+  header button { background: none; border: 1px solid #666; color: #fff; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  main { max-width: 960px; margin: 24px auto; padding: 0 24px; }
+  #login-view { max-width: 320px; margin: 80px auto; background: #fff; padding: 24px; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+  #login-view input { display: block; width: 100%; box-sizing: border-box; margin-bottom: 10px; padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
+  #login-view button { width: 100%; padding: 8px; border: none; border-radius: 6px; background: #0071e3; color: #fff; cursor: pointer; }
+  #login-error { color: #d70015; font-size: 13px; min-height: 18px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tabs button { padding: 6px 14px; border: 1px solid #ccc; background: #fff; border-radius: 999px; cursor: pointer; }
+  .tabs button.active { background: #1d1d1f; color: #fff; border-color: #1d1d1f; }
+  .filters { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .filters input { padding: 6px; border: 1px solid #ccc; border-radius: 6px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #eee; font-size: 13px; }
+  th { background: #fafafa; }
+  .hidden { display: none; }
+  .empty { color: #86868b; padding: 16px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div id="login-view">
+  <h2>Beam Admin</h2>
+  <input id="login-email" type="email" placeholder="Email" autocomplete="username">
+  <input id="login-password" type="password" placeholder="Password" autocomplete="current-password">
+  <button id="login-submit">Log in</button>
+  <div id="login-error"></div>
+</div>
+
+<div id="app-view" class="hidden">
+  <header>
+    <strong>Beam Admin</strong>
+    <button id="logout-btn">Log out</button>
+  </header>
+  <main>
+    <div class="tabs">
+      <button id="tab-audit" class="active">Audit Log</button>
+      <button id="tab-sessions">Sessions</button>
+    </div>
+
+    <div id="audit-view">
+      <div class="filters">
+        <input id="audit-type" placeholder="Event type (e.g. session.started)">
+        <input id="audit-device" placeholder="Device ID">
+        <button id="audit-refresh">Refresh</button>
+      </div>
+      <table>
+        <thead><tr><th>Time</th><th>Type</th><th>Device</th><th>Payload</th></tr></thead>
+        <tbody id="audit-rows"></tbody>
+      </table>
+      <div id="audit-empty" class="empty hidden">No audit events yet.</div>
+    </div>
+
+    <div id="sessions-view" class="hidden">
+      <div class="filters">
+        <button id="sessions-refresh">Refresh</button>
+      </div>
+      <table>
+        <thead><tr><th>Started</th><th>Ended</th><th>Caller</th><th>Callee</th><th>End reason</th><th>Recording</th></tr></thead>
+        <tbody id="sessions-rows"></tbody>
+      </table>
+      <div id="sessions-empty" class="empty hidden">No sessions yet.</div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  const TOKEN_KEY = 'beam_admin_access_token'
+
+  function token() { return localStorage.getItem(TOKEN_KEY) }
+  function setToken(t) { localStorage.setItem(TOKEN_KEY, t) }
+  function clearToken() { localStorage.removeItem(TOKEN_KEY) }
+
+  async function api(path, options = {}) {
+    const res = await fetch(path, {
+      ...options,
+      headers: { ...(options.headers || {}), Authorization: `Bearer ${token()}` }
+    })
+    if (res.status === 401) {
+      clearToken()
+      showLogin()
+      throw new Error('Session expired')
+    }
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText)
+    return res.status === 204 ? null : res.json()
+  }
+
+  function showLogin() {
+    document.getElementById('login-view').classList.remove('hidden')
+    document.getElementById('app-view').classList.add('hidden')
+  }
+
+  function showApp() {
+    document.getElementById('login-view').classList.add('hidden')
+    document.getElementById('app-view').classList.remove('hidden')
+    loadAudit()
+  }
+
+  document.getElementById('login-submit').addEventListener('click', async () => {
+    const email = document.getElementById('login-email').value.trim()
+    const password = document.getElementById('login-password').value
+    const errorEl = document.getElementById('login-error')
+    errorEl.textContent = ''
+    try {
+      const res = await fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Login failed')
+      if (data.user.role !== 'owner' && data.user.role !== 'admin') throw new Error('This dashboard requires an admin or owner account')
+      setToken(data.accessToken)
+      showApp()
+    } catch (err) {
+      errorEl.textContent = err.message
+    }
+  })
+
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    clearToken()
+    showLogin()
+  })
+
+  document.getElementById('tab-audit').addEventListener('click', () => switchTab('audit'))
+  document.getElementById('tab-sessions').addEventListener('click', () => switchTab('sessions'))
+
+  function switchTab(name) {
+    document.getElementById('tab-audit').classList.toggle('active', name === 'audit')
+    document.getElementById('tab-sessions').classList.toggle('active', name === 'sessions')
+    document.getElementById('audit-view').classList.toggle('hidden', name !== 'audit')
+    document.getElementById('sessions-view').classList.toggle('hidden', name !== 'sessions')
+    if (name === 'sessions') loadSessions()
+  }
+
+  document.getElementById('audit-refresh').addEventListener('click', loadAudit)
+  document.getElementById('sessions-refresh').addEventListener('click', loadSessions)
+
+  async function loadAudit() {
+    const type = document.getElementById('audit-type').value.trim()
+    const deviceId = document.getElementById('audit-device').value.trim()
+    const params = new URLSearchParams()
+    if (type) params.set('type', type)
+    if (deviceId) params.set('deviceId', deviceId)
+
+    const { events } = await api(`/audit?${params}`)
+    const rows = document.getElementById('audit-rows')
+    rows.innerHTML = ''
+    for (const e of events) {
+      const tr = document.createElement('tr')
+      tr.innerHTML = `<td>${new Date(e.createdAt).toLocaleString()}</td><td>${e.type}</td><td>${e.deviceId || ''}</td><td>${escapeHtml(JSON.stringify(e.payload || {}))}</td>`
+      rows.appendChild(tr)
+    }
+    document.getElementById('audit-empty').classList.toggle('hidden', events.length > 0)
+  }
+
+  async function loadSessions() {
+    const { sessions } = await api('/sessions')
+    const rows = document.getElementById('sessions-rows')
+    rows.innerHTML = ''
+    for (const s of sessions) {
+      const tr = document.createElement('tr')
+      const recording = s.recording && s.recording.objectKey ? s.recording.objectKey : '—'
+      tr.innerHTML = `<td>${new Date(s.startedAt).toLocaleString()}</td><td>${s.endedAt ? new Date(s.endedAt).toLocaleString() : '—'}</td><td>${s.callerDeviceId}</td><td>${s.calleeDeviceId}</td><td>${s.endReason || ''}</td><td>${escapeHtml(recording)}</td>`
+      rows.appendChild(tr)
+    }
+    document.getElementById('sessions-empty').classList.toggle('hidden', sessions.length > 0)
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+  }
+
+  if (token()) showApp()
+  else showLogin()
+})()
+</script>
+</body>
+</html>

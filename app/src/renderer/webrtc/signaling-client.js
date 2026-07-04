@@ -13,8 +13,9 @@
       this._retriesLeft = MAX_CONNECT_RETRIES
     }
 
-    connect(deviceId) {
+    connect(deviceId, token) {
       this.deviceId = deviceId
+      this.token = token
       this._registered = false
       this._retriesLeft = MAX_CONNECT_RETRIES
       this._open()
@@ -25,7 +26,7 @@
       this.ws = ws
 
       ws.addEventListener('open', () => {
-        this._send({ type: 'register', id: this.deviceId })
+        this._send({ type: 'register', id: this.deviceId, token: this.token })
       })
 
       ws.addEventListener('message', (event) => {

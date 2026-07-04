@@ -36,9 +36,15 @@ async function getLocalScreenStream() {
 let signaling = null
 let peerSession = null
 
-function connectToSignaling(deviceId) {
+function reportAuditEvent(type, payload) {
+  window.rdp.send('report-audit-event', { type, payload })
+}
+
+async function connectToSignaling(deviceId) {
   const url = signalingUrlInput.value.trim()
   localStorage.setItem('signalingUrl', url)
+
+  const deviceToken = await window.rdp.getDeviceToken()
 
   signaling = new window.RDP.SignalingClient(url)
   peerSession = new window.RDP.PeerSession(signaling)
@@ -49,7 +55,9 @@ function connectToSignaling(deviceId) {
   peerSession.addEventListener('status', (event) => setStatus(event.detail))
 
   peerSession.addEventListener('incoming-request', (event) => {
+    reportAuditEvent('session.incoming_request', { deviceId: event.detail.fromId })
     const accept = window.confirm(`Incoming connection request from ${event.detail.fromId}. Accept?`)
+    reportAuditEvent(accept ? 'session.accepted' : 'session.rejected', { deviceId: event.detail.fromId })
     peerSession.respondToIncoming(accept)
   })
 
@@ -87,11 +95,15 @@ function connectToSignaling(deviceId) {
     }
   })
 
-  signaling.connect(deviceId)
+  signaling.connect(deviceId, deviceToken)
   setStatus(`Connecting to signaling server at ${url}...`)
 }
 
-async function main() {
+async function startHome() {
+  document.getElementById('login-view').classList.add('hidden')
+  document.getElementById('signaling-section').classList.remove('hidden')
+  document.getElementById('home-view').classList.remove('hidden')
+
   const deviceId = await window.rdp.getDeviceId()
 
   signalingUrlInput.value = localStorage.getItem('signalingUrl') || DEFAULT_SIGNALING_URL
@@ -106,6 +118,7 @@ async function main() {
         window.rdp.send('open-viewer', { remoteId: targetId, iceServers: peerSession.iceServers })
         return
       }
+      reportAuditEvent('session.connect_requested', { deviceId: targetId })
       peerSession.connectTo(targetId)
     }
   })
@@ -121,9 +134,23 @@ async function main() {
     setStatus('Call ended.')
   })
 
+  document.getElementById('logout-btn').addEventListener('click', async () => {
+    await window.rdp.logout()
+    location.reload()
+  })
+
   signalingConnectBtn.addEventListener('click', () => connectToSignaling(deviceId))
 
   connectToSignaling(deviceId)
+}
+
+async function main() {
+  const session = await window.rdp.getSession()
+  if (!session) {
+    window.RDP.initLoginView({ onLogin: startHome })
+    return
+  }
+  startHome()
 }
 
 main()
