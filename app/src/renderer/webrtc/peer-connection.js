@@ -5,6 +5,15 @@
 (function () {
   const DEFAULT_ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }]
 
+  // Three purpose-built channels instead of one, so a large file transfer can
+  // never head-of-line-block a keystroke, and continuous mouse-move traffic
+  // never queues up behind itself under packet loss.
+  const CHANNEL = {
+    FAST_INPUT: 'input-fast',
+    RELIABLE_INPUT: 'input-reliable',
+    FILE_TRANSFER: 'file-transfer'
+  }
+
   class PeerSession extends EventTarget {
     constructor(signalingClient) {
       super()
@@ -17,6 +26,9 @@
       // which owns the actual RTCPeerConnection from that point on — this
       // instance just relays the remaining signaling messages for it.
       this._delegated = false
+      // label -> open RTCDataChannel. Populated as channels come up on
+      // either side; see _registerChannel and the 'data-channel' event.
+      this.channels = {}
 
       this.signaling.addEventListener('message', (event) => {
         this._onSignalingMessage(event.detail).catch((err) => this._status(`Signaling handling error: ${err.message}`))
@@ -148,8 +160,24 @@
 
       pc.onconnectionstatechange = () => this._status(`Connection state: ${pc.connectionState}`)
 
+      // Callee side: the caller creates the channels in-band with its offer;
+      // this is how we receive them.
+      pc.ondatachannel = (event) => this._registerChannel(event.channel)
+
       this.pc = pc
       return pc
+    }
+
+    // Tracked by label and surfaced via 'data-channel' once actually usable —
+    // input/file logic lives in the renderer that uses PeerSession, not here.
+    _registerChannel(channel) {
+      channel.binaryType = 'arraybuffer'
+      const announce = () => {
+        this.channels[channel.label] = channel
+        this.dispatchEvent(new CustomEvent('data-channel', { detail: { label: channel.label, channel } }))
+      }
+      if (channel.readyState === 'open') announce()
+      else channel.addEventListener('open', announce, { once: true })
     }
 
     async _createOfferAsCaller() {
@@ -157,6 +185,13 @@
       // Caller has no local tracks to offer; add a recvonly transceiver so the
       // SDP actually negotiates a video m-line for the callee to answer into.
       pc.addTransceiver('video', { direction: 'recvonly' })
+
+      // Created here (not on the callee) so they're negotiated as part of
+      // this same offer/answer — no extra signaling round-trip needed.
+      this._registerChannel(pc.createDataChannel(CHANNEL.FAST_INPUT, { ordered: false, maxRetransmits: 0 }))
+      this._registerChannel(pc.createDataChannel(CHANNEL.RELIABLE_INPUT))
+      this._registerChannel(pc.createDataChannel(CHANNEL.FILE_TRANSFER))
+
       const offer = await pc.createOffer()
       await pc.setLocalDescription(offer)
       this.signaling.sendSignal('sdp-offer', this.remoteId, offer)
@@ -189,6 +224,7 @@
         this.pc.close()
         this.pc = null
       }
+      this.channels = {}
       this.remoteId = null
       this.role = null
       this._delegated = false

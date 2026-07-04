@@ -52,6 +52,9 @@ function getOrCreateViewerWindow() {
   })
 
   viewerWindow.loadFile(path.join(__dirname, '..', 'renderer', 'viewer.html'))
+  // No File/Edit/View/Window menu needed, and Alt-key mnemonics would
+  // otherwise steal keystrokes meant for the remote session.
+  viewerWindow.removeMenu()
 
   viewerWindow.on('close', (event) => {
     if (isQuitting) return

@@ -74,6 +74,19 @@ function connectToSignaling(deviceId) {
     window.rdp.send('signal-to-viewer', event.detail)
   })
 
+  // This window plays the host role, so it's the one receiving input and
+  // incoming files from whoever is viewing/controlling us.
+  peerSession.addEventListener('data-channel', (event) => {
+    const { label, channel } = event.detail
+    if (label === 'input-fast' || label === 'input-reliable') {
+      channel.addEventListener('message', (msgEvent) => {
+        window.rdp.send('inject-input', JSON.parse(msgEvent.data))
+      })
+    } else if (label === 'file-transfer') {
+      window.RDP.wireFileReceiver(channel, setStatus)
+    }
+  })
+
   signaling.connect(deviceId)
   setStatus(`Connecting to signaling server at ${url}...`)
 }
