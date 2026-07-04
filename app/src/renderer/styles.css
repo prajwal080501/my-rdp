@@ -170,3 +170,13 @@ button.danger:active {
   min-height: 1.2em;
   margin-top: 8px;
 }
+
+#auth-mode-toggle {
+  color: var(--accent);
+  font-size: 0.85em;
+  text-decoration: none;
+}
+
+#auth-mode-toggle:hover {
+  text-decoration: underline;
+}

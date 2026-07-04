@@ -29,6 +29,12 @@ function registerAuthIpcHandlers() {
     return user
   })
 
+  ipcMain.handle('auth-signup', async (_event, { controlPlaneUrl, email, password, orgName }) => {
+    const user = await auth.signup(controlPlaneUrl, email, password, orgName)
+    audit.reportEvent('auth.signup', { email: user.email, orgName })
+    return user
+  })
+
   ipcMain.handle('auth-logout', async () => {
     audit.reportEvent('auth.logout')
     await auth.logout()

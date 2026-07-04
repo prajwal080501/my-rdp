@@ -69,6 +69,21 @@ async function login(controlPlaneUrl, email, password) {
   return data.user
 }
 
+// Only succeeds once per control-plane deployment — /auth/signup bootstraps
+// the first org and its owner, then disables itself. Every login after that
+// comes from an owner/admin creating the account via POST /auth/users.
+async function signup(controlPlaneUrl, email, password, orgName) {
+  const data = await postJson(`${controlPlaneUrl}/auth/signup`, { email, password, orgName })
+  save({
+    controlPlaneUrl,
+    accessToken: data.accessToken,
+    accessTokenExpiresAt: decodeExpiryMs(data.accessToken),
+    refreshToken: data.refreshToken,
+    user: data.user
+  })
+  return data.user
+}
+
 async function logout() {
   const current = load()
   if (current) {
@@ -135,4 +150,4 @@ async function getDeviceToken(deviceId) {
   return { deviceToken: data.deviceToken, freshlyRegistered: true }
 }
 
-module.exports = { login, logout, getSession, getDeviceToken }
+module.exports = { login, signup, logout, getSession, getDeviceToken }

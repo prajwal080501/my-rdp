@@ -21,6 +21,11 @@
     <h2>Beam</h2>
 
     <section id="login-view">
+        <div id="signup-org-group" class="field-group hidden">
+            <label for="signup-org-name">Organization name</label>
+            <input id="signup-org-name" placeholder="e.g. Acme Inc" />
+        </div>
+
         <div class="field-group">
             <label for="login-email">Email</label>
             <input id="login-email" type="email" />
@@ -32,10 +37,14 @@
         </div>
 
         <div class="field-group">
-            <button id="login-btn">Log in</button>
+            <button id="login-submit-btn">Log in</button>
         </div>
 
         <div id="login-error" class="error-text"></div>
+
+        <div class="field-group">
+            <a href="#" id="auth-mode-toggle">Need an account? Create one</a>
+        </div>
     </section>
 
     <section id="signaling-section" class="hidden">

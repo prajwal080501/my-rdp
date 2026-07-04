@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('rdp', {
 
   getSession: () => ipcRenderer.invoke('auth-get-session'),
   login: (payload) => ipcRenderer.invoke('auth-login', payload),
+  signup: (payload) => ipcRenderer.invoke('auth-signup', payload),
   logout: () => ipcRenderer.invoke('auth-logout'),
   getDeviceToken: () => ipcRenderer.invoke('auth-get-device-token'),
 
