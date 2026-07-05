@@ -42,15 +42,29 @@ function decodeExpiryMs(token) {
   return payload.exp * 1000
 }
 
+// Without this, a hung control-plane request (e.g. a stalled database write)
+// leaves the login/signup button silently unresponsive forever instead of
+// surfacing an error the user can act on.
+const REQUEST_TIMEOUT_MS = 15000
+
 async function postJson(url, body, accessToken) {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
-    },
-    body: JSON.stringify(body)
-  })
+  let res
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    })
+  } catch (err) {
+    if (err.name === 'TimeoutError' || err.name === 'AbortError') {
+      throw new Error('The server took too long to respond. Please try again.')
+    }
+    throw err
+  }
   const text = await res.text()
   const data = text ? JSON.parse(text) : null
   if (!res.ok) throw new Error((data && data.error) || res.statusText)

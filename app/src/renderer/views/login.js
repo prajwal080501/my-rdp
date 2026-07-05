@@ -12,10 +12,6 @@
     const errorEl = document.getElementById('login-error')
     const modeToggle = document.getElementById('auth-mode-toggle')
 
-    // Create Account only ever succeeds for the very first user on a fresh
-    // control-plane deployment — it bootstraps that org and its owner, then
-    // disables itself server-side. Every account after that comes from an
-    // owner/admin inviting a teammate, not this form.
     let mode = 'login'
 
     function applyMode() {
@@ -32,18 +28,30 @@
       applyMode()
     })
 
+    // IPC rejections arrive wrapped as "Error invoking remote method 'x': Error: <message>" —
+    // strip that boilerplate so the field-level error reads like a normal message.
+    function cleanErrorMessage(message) {
+      return message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+    }
+
     submitBtn.addEventListener('click', async () => {
       errorEl.textContent = ''
       const email = emailInput.value.trim()
       const password = passwordInput.value
+      const isSignup = mode === 'signup'
+
+      submitBtn.disabled = true
+      submitBtn.textContent = isSignup ? 'Creating account...' : 'Logging in...'
 
       try {
-        const user = mode === 'signup'
+        const user = isSignup
           ? await window.rdp.signup({ controlPlaneUrl: CONTROL_PLANE_URL, email, password, orgName: orgInput.value.trim() })
           : await window.rdp.login({ controlPlaneUrl: CONTROL_PLANE_URL, email, password })
         onLogin(user)
       } catch (err) {
-        errorEl.textContent = err.message
+        errorEl.textContent = cleanErrorMessage(err.message)
+        submitBtn.disabled = false
+        submitBtn.textContent = isSignup ? 'Create account' : 'Log in'
       }
     })
 
