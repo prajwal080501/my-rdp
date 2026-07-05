@@ -63,6 +63,12 @@ async function postJson(url, body, accessToken) {
     if (err.name === 'TimeoutError' || err.name === 'AbortError') {
       throw new Error('The server took too long to respond. Please try again.')
     }
+    // Covers both "nothing listening" (ECONNREFUSED) and "was listening,
+    // then the connection dropped mid-request" (UND_ERR_SOCKET) — from the
+    // caller's perspective both mean the same thing: couldn't reach it.
+    if (err instanceof TypeError && err.message === 'fetch failed') {
+      throw new Error(`Could not reach the server at ${url}. Make sure it's running and reachable.`)
+    }
     throw err
   }
   const text = await res.text()
