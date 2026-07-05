@@ -1,9 +1,10 @@
 (function () {
-  // Fixed rather than user-configurable: Beam ships pointed at the operator's
-  // own deployed control plane, not a URL end users type in themselves.
-  const CONTROL_PLANE_URL = 'https://api-beam.vercel.app'
-
-  function initLoginView({ onLogin }) {
+  // Fixed rather than user-configurable: which control plane Beam points at
+  // is an operator/build-time decision (dev run -> local:4000, packaged
+  // build -> the deployed API — see main/config.js), not something end
+  // users type in themselves.
+  async function initLoginView({ onLogin }) {
+    const controlPlaneUrl = await window.rdp.getControlPlaneUrl()
     const orgGroup = document.getElementById('signup-org-group')
     const orgInput = document.getElementById('signup-org-name')
     const emailInput = document.getElementById('login-email')
@@ -45,8 +46,8 @@
 
       try {
         const user = isSignup
-          ? await window.rdp.signup({ controlPlaneUrl: CONTROL_PLANE_URL, email, password, orgName: orgInput.value.trim() })
-          : await window.rdp.login({ controlPlaneUrl: CONTROL_PLANE_URL, email, password })
+          ? await window.rdp.signup({ controlPlaneUrl, email, password, orgName: orgInput.value.trim() })
+          : await window.rdp.login({ controlPlaneUrl, email, password })
         onLogin(user)
       } catch (err) {
         errorEl.textContent = cleanErrorMessage(err.message)

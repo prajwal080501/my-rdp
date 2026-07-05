@@ -7,10 +7,12 @@ const auth = require('./auth')
 const audit = require('./audit')
 const sessions = require('./sessions')
 const recording = require('./recording')
+const { CONTROL_PLANE_URL } = require('./config')
 
 function registerIpcHandlers() {
   ipcMain.handle('get-screen-sources', () => getScreenSources())
   ipcMain.handle('get-device-id', () => getDeviceId())
+  ipcMain.handle('get-control-plane-url', () => CONTROL_PLANE_URL)
 
   // Fire-and-forget: input-injector queues and executes these itself so this
   // handler never blocks waiting on the (slower) native OS call.

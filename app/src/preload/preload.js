@@ -31,6 +31,7 @@ const INCOMING_CHANNELS = [
 contextBridge.exposeInMainWorld('rdp', {
   getScreenSources: () => ipcRenderer.invoke('get-screen-sources'),
   getDeviceId: () => ipcRenderer.invoke('get-device-id'),
+  getControlPlaneUrl: () => ipcRenderer.invoke('get-control-plane-url'),
 
   getSession: () => ipcRenderer.invoke('auth-get-session'),
   login: (payload) => ipcRenderer.invoke('auth-login', payload),
