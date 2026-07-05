@@ -1,6 +1,7 @@
 const path = require('path')
 const express = require('express')
 const { connectDb } = require('./db')
+const healthRoutes = require('./routes/health')
 const authRoutes = require('./routes/auth')
 const deviceRoutes = require('./routes/devices')
 const sessionRoutes = require('./routes/sessions')
@@ -9,6 +10,11 @@ const recordingRoutes = require('./routes/recordings')
 
 const app = express()
 app.use(express.json())
+
+// Mounted ahead of the DB-connect gate below: /health does its own
+// individually-timed-out checks and must keep working even when the
+// database is the thing that's broken, to be useful for diagnosing that.
+app.use('/health', healthRoutes)
 
 // Serverless-safe: connectDb() is idempotent, so this is a no-op on every
 // request after the first one on a warm lambda instance (see src/db.js).

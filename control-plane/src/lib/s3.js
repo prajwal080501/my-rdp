@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3')
+const { S3Client, PutObjectCommand, HeadBucketCommand } = require('@aws-sdk/client-s3')
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
 
 // endpoint left undefined for real AWS S3; set S3_ENDPOINT for a self-hosted
@@ -24,4 +24,8 @@ async function getUploadUrl(objectKey, contentType) {
   return getSignedUrl(client, command, { expiresIn: PUT_URL_TTL_SECONDS })
 }
 
-module.exports = { getUploadUrl }
+function headBucket() {
+  return client.send(new HeadBucketCommand({ Bucket: process.env.S3_BUCKET }))
+}
+
+module.exports = { getUploadUrl, headBucket }
